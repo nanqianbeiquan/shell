@@ -1,0 +1,2 @@
+sqoop import --connect 'jdbc:sqlserver://172.16.0.26;username=leiyubing;password=ljs&*MBG,jsu23;database=pachong' --table KeyPerson_Info  --fields-terminated-by '\001' --lines-terminated-by '\n' --hive-import -hive-database ods --hive-table pachong_KeyPerson_Info --hive-partition-key dt --hive-partition-value 2016-06-02 --where "lastupdatetime>='2016-06-02'"    --hive-overwrite   --split-by lastupdatetime --hive-delims-replacement '<br>' -m 6
+

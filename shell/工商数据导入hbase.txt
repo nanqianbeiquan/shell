@@ -1,0 +1,60 @@
+insert into glad.changed_announcement_temp partition (dt='2016-05-21')
+select  t.mc,t.zch,t.bgsx,t.bgq,t.bqh,t.bgrq,t.id from (select b.MC,b.ZCH,c.BGSX,c.BGQNR,c.BGHNR,c.BGRQ,c.XH from glad.t_pl_public_org_alteration c left join glad.t_pl_public_org_base b  on c.id=b.id) s
+right join (
+select b.mc,b.zch,z.bgsx,z.bgq,z.bqh,z.bgrq,z.id,ROW_NUMBER() OVER(PARTITION BY zch,mc,bgsx,bgq,bqh,z.id order by z.id desc ) rank  from gongshang.sh_zcbg z left join gongshang.sh_base b on z.orgid=b.id ) t on s.MC=t.mc
+where s.mc is null and t.rank=1
+
+
+基本信息
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Registered_Info:registrationno,Registered_Info:enterprisename,Registered_Info:province,Registered_Info:legalrepresentative,Registered_Info:enterprisetype,Registered_Info:establishmentdate,Registered_Info:registeredcapital,Registered_Info:registeredcurrency,Registered_Info:residenceaddress,Registered_Info:validityfrom,Registered_Info:validityto,Registered_Info:businessscope,Registered_Info:registrationinstitution,Registered_Info:approvaldate,Registered_Info:registrationstatus,Registered_Info:principal,Registered_Info:businessplace,Registered_Info:lastupdatetime,Registered_Info:revocationdate,Registered_Info:investor,Registered_Info:mianbusinessplace,Registered_Info:partnershipfrom,Registered_Info:partnershipto,Registered_Info:executivepartner,Registered_Info:compositionform,Registered_Info:operator,Registered_Info:chiefrepresentative,Registered_Info:enterpriseassigning,Registered_Info:tyshxy_code,Registered_Info:totalcontributionofmembers,Registered_Info:dt  GS /user/hive/warehouse/temp.db/t_pachong_registered_info_03
+
+动产抵押
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Chattel_Mortgage:chattelmortgage_no,Chattel_Mortgage:chattelmortgage_registrationno,Chattel_Mortgage:chattelmortgage_registrationdate,Chattel_Mortgage:chattelmortgage_registrationinstitution,Chattel_Mortgage:chattelmortgage_guaranteedamount,Chattel_Mortgage:chattelmortgage_status,Chattel_Mortgage:chattelmortgage_announcedate,Chattel_Mortgage:chattelmortgage_details,Chattel_Mortgage:lastupdatetime,Chattel_Mortgage:id,Chattel_Mortgage:dt GS /user/hive/warehouse/temp.db/t_pachong_chattel_mortgage_03
+
+
+
+变更
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Changed_Announcement:changedannouncement_events,Changed_Announcement:changedannouncement_before,Changed_Announcement:changedannouncement_after,Changed_Announcement:changedannouncement_date,Changed_Announcement:lastupdatetime,Changed_Announcement:id,Changed_Announcement:dt GS /user/hive/warehouse/temp.db/t_pachong_changed_announcement_03
+
+
+行政处罚
+
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Administrative_Penalty:penalty_no,Administrative_Penalty:penalty_code,Administrative_Penalty:penalty_illegaltype,Administrative_Penalty:penalty_decisioncontent,Administrative_Penalty:penalty_decisioninsititution,Administrative_Penalty:penalty_decisiondate,Administrative_Penalty:penalty_details,Administrative_Penalty:lastupdatetime,Administrative_Penalty:penalty_announceddate,Administrative_Penalty:penalty_publicationdate,Administrative_Penalty:equitypledge_announcedate,Administrative_Penalty:id,Administrative_Penalty:dt GS /user/hive/warehouse/temp.db/t_pachong_administrative_penalty_03
+
+
+经营异常
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Business_Abnormal:abnormal_no,Business_Abnormal:abnormal_events,Business_Abnormal:abnormal_datesin,Business_Abnormal:abnormal_moveoutreason,Business_Abnormal:abnormal_datesout,Business_Abnormal:abnormal_decisioninstitution,Business_Abnormal:lastupdatetime,Business_Abnormal:publication_date,Business_Abnormal:id,Business_Abnormal:dt GS /user/hive/warehouse/temp.db/t_pachong_business_abnormal_03
+
+
+分支机构
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Branches:branch_no,Branches:branch_registrationno,Branches:branch_registrationname,Branches:branch_registrationinstitution,Branches:lastupdatetime,Branches:id,Branches:dt GS /user/hive/warehouse/temp.db/t_pachong_branches_03
+
+清算信息
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,liquidation_Information:liquidation_pic,liquidation_Information:liquidation_member,liquidation_Information:lastupdatetime,liquidation_Information:dt GS /user/hive/warehouse/temp.db/t_pachong_liquidation_information_03
+
+家庭成员
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Family_Info:familymember_no,Family_Info:familymember_name,Family_Info:familymember_position,Family_Info:lastupdatetime,Family_Info:id,Family_Info:dt GS /user/hive/warehouse/temp.db/t_pachong_family_info_03
+
+
+
+股权出资
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Equity_Pledge:equitypledge_no,Equity_Pledge:equitypledge_registrationno,Equity_Pledge:equitypledge_pledgor,Equity_Pledge:equitypledge_pledgorid,Equity_Pledge:equitypledge_amount,Equity_Pledge:equitypledge_pawnee,Equity_Pledge:equitypledge_pawneeid,Equity_Pledge:equitypledge_registrationdate,Equity_Pledge:equitypledge_status,Equity_Pledge:equitypledge_announcedate,Equity_Pledge:equitypledge_change,Equity_Pledge:lastupdatetime,Equity_Pledge:equitypledge_detail,Equity_Pledge:id,Equity_Pledge:dt GS /user/hive/warehouse/temp.db/t_pachong_equity_pledge_03
+
+抽查检查
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Equity_Pledge:equitypledge_no,Equity_Pledge:equitypledge_registrationno,Equity_Pledge:equitypledge_pledgor,Equity_Pledge:equitypledge_pledgorid,Equity_Pledge:equitypledge_amount,Equity_Pledge:equitypledge_pawnee,Equity_Pledge:equitypledge_pawneeid,Equity_Pledge:equitypledge_registrationdate,Equity_Pledge:equitypledge_status,Equity_Pledge:equitypledge_announcedate,Equity_Pledge:equitypledge_change,Equity_Pledge:lastupdatetime,Equity_Pledge:equitypledge_detail,Equity_Pledge:id,Equity_Pledge:dt GS /user/hive/warehouse/temp.db/t_pachong_spot_check_03
+
+主要人员
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,KeyPerson_Info:keyperson_no,KeyPerson_Info:keyperson_name,KeyPerson_Info:keyperson_position,KeyPerson_Info:lastupdatetime,KeyPerson_Info:id,KeyPerson_Info:dt GS /user/hive/warehouse/temp.db/t_pachong_keyperson_info
+
+股东信息
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,Shareholder_Info:shareholder_type,Shareholder_Info:shareholder_name,Shareholder_Info:shareholder_certificationtype,Shareholder_Info:shareholder_certificationno,Shareholder_Info:subscripted_capital,Shareholder_Info:subscripted_method,Shareholder_Info:subscripted_amount,Shareholder_Info:subscripted_time,Shareholder_Info:actualpaid_capital,Shareholder_Info:actualpaid_method,Shareholder_Info:actualpaid_amount,Shareholder_Info:actualpaid_time,Shareholder_Info:lastupdatetime,Shareholder_Info:shareholder_details,Shareholder_Info:detailflag,Shareholder_Info:id,Shareholder_Info:dt GS /user/hive/warehouse/temp.db/t_pachong_shareholder_info
+
+
+搜索表
+
+hbase org.apache.hadoop.hbase.mapreduce.ImportTsv  -Dimporttsv.separator=$(echo -e '\001') -Dimporttsv.columns=HBASE_ROW_KEY,keyword:enterprisename,keyword:legalrepresentative,keyword:establishmentdate,keyword:registeredcapital,keyword:registrationstatus,keyword:residenceaddress,keyword:businessscope,keyword:keypersonname,keyword:shareholdername LengJingSearch /user/hive/warehouse/temp.db/t_lengjingsearch
+
+
+
+
+

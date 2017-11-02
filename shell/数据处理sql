@@ -1,0 +1,711 @@
+德兰格数据处理
+
+a.注册表
+add jar /root/kpi/glad/moneyParse-0.0.1-SNAPSHOT.jar;
+CREATE TEMPORARY FUNCTION parseMoney AS 'org.parse.money.moneyParse.Parsemoney';
+insert overwrite  table glad.registered_info_temp partition(dt='2016-05-21')
+select distinct if(length(regexp_replace(xydm,'[\s ]',''))==0 or xydm is null or lower(xydm)=='null',zch,xydm),d.mc,d.SFMC,d.FDDBR,d.LX,d.CLRQ,parseMoney(d.ZCZB,d.zcbz),'万元',if(d.JYDZ is null,d.YYCS,d.JYDZ),d.YYQXZ,d.YYQXZH,d.JYFW,d.DJJG,d.HZRQ,d.DJZT,d.FZR,
+d.YYCS,d.DXRQ,d.JYZ,d.TZR,d.ZXSWHHR,d.yycs,'','',d.ZCXS,d.JYZ,d.SXDB,d.PCJGMC,d.XYDM,'' from glad.t_pl_public_org_base d 
+union all 
+select t.zch,t.mc,'',t.fr,'',t.zczb,t.zcbz,t.dz,t.validityfrom,t.validityto,t.jyfw,'','',t.djzt,'','','','','','','','','','','','','','','','' from (
+select  y.zch,y.mc,'',y.fr,'',y.clsj,parseMoney(y.zczb,'元') zczb,'万元' zcbz,y.dz,if(y.jyqx is null,'',split(jyqx,'至')[0]) validityfrom,
+if(y.jyqx is null,'',split(jyqx,'至')[1]) validityto,y.jyfw,djzt,row_number()over(partition by mc order by concat(if(length(zch)=18,'1','0'),
+if(djzt not like '*销' and djzt!='迁出','1','0'),clsj) desc) rank
+from ( 
+select s.mc smc,b.zch,b.mc,b.dz,b.fr,b.zczb,b.clsj,b.djzt,b.jyqx,b.jyfw from glad.t_pl_public_org_base s right join  
+(select mc mc2,* from gongshang.sh_base) b on s.mc=b.mc2
+where s.mc is null) y
+) t where t.rank=1
+
+CREATE TEMPORARY FUNCTION parseMoney AS 'org.parse.money.moneyParse.Parsemoney';
+insert overwrite table glad.registered_info_temp_03 partition(dt='2016-05-21')
+select if(length(regexp_replace(xydm,'[\s ]',''))==0 or xydm is null or lower(xydm)=='null',zch,xydm),d.mc,d.SFMC,d.FDDBR,d.LX,d.CLRQ,parseMoney(d.ZCZB,d.zcbz),if(parseMoney(d.ZCZB,d.zcbz) <> '','万元',''),if(d.JYDZ is null,d.YYCS,d.JYDZ),d.YYQXZ,d.YYQXZH,d.JYFW,d.DJJG,d.HZRQ,d.DJZT,d.FZR,
+d.YYCS,d.DXRQ,d.JYZ,d.TZR,d.ZXSWHHR,d.yycs,'','',d.ZCXS,d.JYZ,d.SXDB,d.PCJGMC,d.XYDM,'' from gongshang.t_pl_public_org_base d 
+union all 
+select g.registrationno,g.enterprisename,g.province,g.legalrepresentative,g.enterprisetype,
+g.establishmentdate,g.registeredcapital,g.registeredcurrency,g.residenceaddress,g.validityfrom,g.validityto,
+g.businessscope,g.registrationinstitution,g.approvaldate,g.registrationstatus,g.principal,g.businessplace,g.lastupdatetime,
+g.revocationdate,g.investor,g.mianbusinessplace,g.partnershipfrom,g.partnershipto,g.executivepartner,g.compositionform,
+g.operator,g.chiefrepresentative,g.enterpriseassigning,g.tyshxy_code,g.totalcontributionofmembers
+ from glad.registered_info_temp g 
+left join (select b.mc from gongshang.t_pl_public_org_base b ) t 
+on g.enterprisename=t.mc
+where t.mc is null 
+
+
+
+
+add jar /apps/likai/LengJingUdf.jar;
+CREATE TEMPORARY FUNCTION parseDate AS 'gongshang.ParseDate';
+create temporary function SplitMoney as 'gongshang.SplitMoney';
+ 
+insert overwrite table  temp.t_pachong_registered_info_03
+select  t1.* from
+(
+select concat(r.enterprisename,'_01_',r.registrationno,'_'),r.registrationno,r.enterprisename,r.province,r.legalrepresentative,
+r.enterprisetype,parseDate(r.establishmentdate),Parsemoney(split(SplitMoney(r.registeredcapital),',')[0],split(SplitMoney(r.registeredcapital),',')[1]),
+if(Parsemoney(split(SplitMoney(r.registeredcapital),',')[0],split(SplitMoney(r.registeredcapital),',')[1]) <> '','万元',''),
+r.residenceaddress,r.validityfrom,r.validityto,r.businessscope,r.registrationinstitution,r.approvaldate,r.registrationstatus,r.principal,r.businessplace,r.lastupdatetime,
+r.revocationdate,r.investor,r.mianbusinessplace,r.partnershipfrom,r.partnershipto,r.executivepartner,r.compositionform,
+r.operator,r.chiefrepresentative,r.enterpriseassigning,r.tyshxy_code,r.totalcontributionofmembers,r.dt
+from ods.pachong_registered_info r where r.dt <> 'glad' and r.enterprisename<>'' ) t1
+join
+(select enterprisename,registrationno,max(if(dt in ('guangzhou','shenzhen'),'2016-04-01',dt)) max_dt 
+from ods.pachong_registered_info 
+where dt <> 'glad' and enterprisename<>''
+group by enterprisename,registrationno) r2
+on t1.enterprisename=r2.enterprisename and t1.registrationno=r2.registrationno and t1.dt=r2.max_dt
+union all
+select  z.* from 
+(
+select  concat(g.enterprisename,'_01_',g.registrationno,'_'),g.registrationno,g.enterprisename,g.province,g.legalrepresentative,
+g.enterprisetype,parseDate(g.establishmentdate),g.registeredcapital,g.registeredcurrency,
+g.residenceaddress,g.validityfrom,g.validityto,g.businessscope,g.registrationinstitution,g.approvaldate,g.registrationstatus,g.principal,g.businessplace,g.lastupdatetime,
+g.revocationdate,g.investor,g.mianbusinessplace,g.partnershipfrom,g.partnershipto,g.executivepartner,g.compositionform,
+g.operator,g.chiefrepresentative,g.enterpriseassigning,g.tyshxy_code,g.totalcontributionofmembers,g.dt 
+from (
+select * from ods.pachong_registered_info s where s.dt <> 'glad'
+) w 
+right join glad.registered_info_temp_03 g on w.enterprisename=g.enterprisename
+where w.enterprisename is null
+) z
+
+
+insert into  table  temp.t_pachong_registered_info_03
+select  concat(g.enterprisename,'_01_',g.registrationno,'_'),g.registrationno,g.enterprisename,g.province,g.legalrepresentative,
+g.enterprisetype,parseDate(g.establishmentdate),g.registeredcapital,g.registeredcurrency,
+g.residenceaddress,g.validityfrom,g.validityto,g.businessscope,g.registrationinstitution,g.approvaldate,g.registrationstatus,g.principal,g.businessplace,g.lastupdatetime,
+g.revocationdate,g.investor,g.mianbusinessplace,g.partnershipfrom,g.partnershipto,g.executivepartner,g.compositionform,
+g.operator,g.chiefrepresentative,g.enterpriseassigning,g.tyshxy_code,g.totalcontributionofmembers,g.dt 
+from (
+select * from ods.pachong_registered_info s where s.dt <> 'glad'
+) w 
+right join glad.registered_info_temp_03 g on (w.enterprisename=g.enterprisename)
+where  w.enterprisename is null
+
+
+
+insert into  table  temp.t_pachong_registered_info_03
+select  z.* from 
+(
+select  concat(g.enterprisename,'_01_',g.registrationno,'_'),g.registrationno,g.enterprisename,g.province,g.legalrepresentative,
+g.enterprisetype,parseDate(g.establishmentdate),g.registeredcapital,g.registeredcurrency,
+g.residenceaddress,g.validityfrom,g.validityto,g.businessscope,g.registrationinstitution,g.approvaldate,g.registrationstatus,g.principal,g.businessplace,g.lastupdatetime,
+g.revocationdate,g.investor,g.mianbusinessplace,g.partnershipfrom,g.partnershipto,g.executivepartner,g.compositionform,
+g.operator,g.chiefrepresentative,g.enterpriseassigning,g.tyshxy_code,g.totalcontributionofmembers,g.dt 
+from (
+select * from ods.pachong_registered_info s where s.dt <> 'glad'
+) w 
+right join glad.registered_info_temp_03 g on w.enterprisename=g.enterprisename
+where w.enterprisename is null
+) z
+
+
+
+
+
+b.变更信息表
+
+CREATE TABLE `changed_announcement_temp`(
+	  `enterprisename` string, 
+	  `registrationno` string, 
+	  `changedannouncement_events` string, 
+	  `changedannouncement_before` string, 
+	  `changedannouncement_after` string, 
+	  `changedannouncement_date` string,
+	  `id` int)
+	  PARTITIONED BY (`dt` string)
+	ROW FORMAT DELIMITED 
+	  FIELDS TERMINATED BY '\u0001' 
+	  LINES TERMINATED BY '\n' 
+	  
+	  
+insert overwrite table  glad.changed_announcement_temp partition (dt='2016-05-21')
+select t.mc,zch,BGSX,BGQNR,BGHNR,BGRQ,xh from (
+select b.MC,if(length(regexp_replace(xydm,'[\s ]',''))==0 or xydm is null or lower(xydm)=='null',zch,xydm) zch,c.BGSX,c.BGQNR,c.BGHNR,c.BGRQ,c.XH, 
+ROW_NUMBER() OVER(PARTITION BY if(length(xydm)==0 or xydm==null or lower(xydm)=='null',zch,xydm),mc,BGSX,BGQNR,BGRQ,c.id order by xh desc) rank
+from glad.t_pl_public_org_alteration c left join glad.t_pl_public_org_base b  on c.id=b.id
+) t where t.rank=1
+union all
+select  t.mc,t.zch,t.bgsx,t.bgq,t.bqh,t.bgrq,t.id from (select b.MC,b.ZCH,c.BGSX,c.BGQNR,c.BGHNR,c.BGRQ,c.XH from glad.t_pl_public_org_alteration c left join glad.t_pl_public_org_base b  on c.id=b.id) s
+right join (
+select regexp_replace(b.mc,'[`~!@#$%^&*+=|{}\':;\",\\[\\].<>/?~！￥…—【】‘；：”“’。，、？\t ]','') mc ,b.zch,z.bgsx,z.bgq,z.bqh,z.bgrq,z.id,ROW_NUMBER() OVER(PARTITION BY orgid,bgsx,bgq,bqh,bgrq order by z.id desc ) rank  from gongshang.sh_zcbg z left join gongshang.sh_base b on z.orgid=b.id ) t on s.MC=t.mc
+where s.mc is null and t.rank=1
+
+
+CREATE TABLE `t_pachong_changed_announcement_03`(
+	  `key` string,  
+	  `changedannouncement_events` string, 
+	  `changedannouncement_before` string, 
+	  `changedannouncement_after` string, 
+	  `changedannouncement_date` string, 
+	  `lastupdatetime` string, 
+	  `id` int, 
+	  `dt` string)
+	ROW FORMAT DELIMITED 
+	  FIELDS TERMINATED BY '\u0001' 
+	  LINES TERMINATED BY '\n' 
+
+
+insert overwrite table temp.t_pachong_changed_announcement_03
+select  concat(g.enterprisename,'_05_',g.registrationno,'_',y.id),y.changedannouncement_events,y.changedannouncement_before,
+y.changedannouncement_after,y.changedannouncement_date,lastupdatetime,y.id,'' from (
+select d.registrationno,d.changedannouncement_events,d.changedannouncement_before,d.changedannouncement_after,d.changedannouncement_date,d.id,d.lastupdatetime,
+ROW_NUMBER() OVER(PARTITION BY registrationno,changedannouncement_events,
+changedannouncement_date order by d.id desc ) rank
+from ods.pachong_changed_announcement_bj_temp d ) y  join 
+(select registrationno,enterprisename from ods.pachong_registered_info where dt <> 'glad') g
+on y.registrationno=g.registrationno 
+where y.rank=1
+
+insert into temp.t_pachong_changed_announcement_03
+select concat(g.enterprisename,'_05_',g.registrationno,'_',y.id),y.changedannouncement_events,y.changedannouncement_before,
+y.changedannouncement_after,y.changedannouncement_date,lastupdatetime,y.id,y.dt from (
+select d.registrationno,d.changedannouncement_events,d.changedannouncement_before,d.changedannouncement_after,d.changedannouncement_date,d.dt,d.id,d.lastupdatetime,
+ROW_NUMBER() OVER(PARTITION BY d.registrationno,d.changedannouncement_events,
+d.changedannouncement_date order by d.id desc ) rank from (select * from ods.pachong_changed_announcement where dt <> 'glad') d 
+left join ods.pachong_changed_announcement_bj_temp b 
+on d.registrationno=b.registrationno 
+where b.registrationno is null 
+) y   join 
+(select registrationno,enterprisename from ods.pachong_registered_info where dt <> 'glad') g
+on y.registrationno=g.registrationno 
+where y.rank=1
+
+union all
+INSERT INTO temp.t_pachong_changed_announcement_03
+select concat(y.enterprisename,'_05_',y.registrationno,'_',y.id),
+y.changedannouncement_events,y.changedannouncement_before,
+y.changedannouncement_after,y.changedannouncement_date,lastupdatetime,y.id,y.dt from (
+SELECT gt.registrationno,
+       gt.enterprisename
+       gt.changedannouncement_events,
+       gt.changedannouncement_before,
+       gt.changedannouncement_after,
+       gt.changedannouncement_date,
+       '',
+       gt.id,
+	   gt.dt,
+	   ROW_NUMBER() OVER(PARTITION BY registrationno,changedannouncement_events,changedannouncement_date order by id desc ) rank
+FROM glad.changed_announcement_temp gt
+LEFT JOIN
+(select g.enterprisename from  (SELECT distinct d.registrationno registrationno
+      FROM ods.pachong_changed_announcement d
+      WHERE d.dt <> 'glad') t
+   JOIN
+     (SELECT registrationno,
+             enterprisename
+      FROM ods.pachong_registered_info
+      WHERE dt <> 'glad') g ON t.registrationno=g.registrationno ) z ON gt.enterprisename=z.enterprisename
+	  WHERE z.enterprisename IS NULL and gt.rank=1
+) y 
+
+
+
+
+c 主要人员信息表
+
+CREATE TABLE `keyperson_info_temp`(
+	  `registrationno` string, 
+	  `enterprisename` string,
+	  `keyperson_no` string, 
+	  `keyperson_name` string, 
+	  `keyperson_position` string, 
+	  `keyperson_certificationtype` string, 
+	  `keyperson_certificationno` string, 
+	  `lastupdatetime` string, 
+	  `id` int)
+	PARTITIONED BY ( 
+	  `dt` string)
+	ROW FORMAT DELIMITED 
+	  FIELDS TERMINATED BY '\u0001' 
+	  LINES TERMINATED BY '\n' 
+	  
+insert overwrite table  glad.keyperson_info_temp partition (dt='2016-05-21')
+select t.zch,t.mc,'',t.xm,t.zw,t.ZJLX,t.ZJHM,'',xh from (
+select if(length(regexp_replace(xydm,'[\s ]',''))==0 or xydm is null or lower(xydm)=='null',zch,xydm) zch,b.mc,d.xh,d.XM,d.zw,d.ZJLX,d.ZJHM,ROW_NUMBER() OVER(PARTITION BY if(length(xydm)==0 or xydm==null or lower(xydm)=='null',zch,xydm),mc,xm,zw order by xh desc) rank from glad.t_pl_public_org_staff d left join glad.t_pl_public_org_base b on d.id=b.id
+) t where rank=1
+union all
+select y.zch,y.mc,'',y.xm,y.zw,'','','',y.id from (select t.zch,t.mc,max(t.xh),t.xm,t.zw,t.ZJLX,t.ZJHM,'',max(t.xh) from (select if(length(xydm)==0 or xydm==null or lower(xydm)=='null',zch,xydm) zch,b.mc,d.xh,d.XM,d.zw,d.ZJLX,d.ZJHM,'' from glad.t_pl_public_org_staff d left join glad.t_pl_public_org_base b on d.id=b.id) t 
+group by t.zch,t.mc,t.xm,t.zw,t.ZJLX,t.ZJHM) glad
+right join (
+select t.zch,t.mc,t.xm,t.zw,max(t.id) id from (
+select b.zch,b.mc,s.id,s.xm,s.zw from gongshang.sh_baxx s left join gongshang.sh_base b on s.orgid=b.id )t
+group by t.zch,t.mc,t.xm,t.zw) y on glad.mc=y.mc
+where glad.mc is null
+
+
+insert overwrite table  glad.keyperson_info_temp_03 partition (dt='2016-05-21')
+select t.zch,t.mc,'',t.xm,t.zw,t.ZJLX,t.ZJHM,'',xh from (
+select if(length(regexp_replace(xydm,'[\s ]',''))==0 or xydm is null or lower(xydm)=='null',zch,xydm) zch,b.mc,d.xh,d.XM,d.zw,d.ZJLX,d.ZJHM,ROW_NUMBER() OVER(PARTITION BY zch,mc,xm,zw order by xh desc) rank from gongshang.t_pl_public_org_staff d left join gongshang.t_pl_public_org_base b on d.id=b.id
+) t where rank=1
+union all
+select g.registrationno,g.enterprisename,g.keyperson_no,g.keyperson_name,g.keyperson_position,g.keyperson_certificationtype,g.keyperson_certificationno,
+g.lastupdatetime,g.id
+from glad.keyperson_info_temp g
+left join (select distinct b.mc mc from gongshang.t_pl_public_org_staff d left join gongshang.t_pl_public_org_base b on d.id=b.id) g1
+on g.enterprisename=g1.mc 
+where g1.mc is null 
+
+
+CREATE TABLE `t_pachong_keyperson_info_03`(
+	  `key` string, 
+	  `registrationno` string, 
+	  `enterprisename` string,
+	  `keyperson_no` string, 
+	  `keyperson_name` string, 
+	  `keyperson_position` string, 
+	  `keyperson_certificationtype` string, 
+	  `keyperson_certificationno` string, 
+	  `lastupdatetime` string, 
+	  `id` int, 
+	  `dt` string)
+	ROW FORMAT DELIMITED 
+	  FIELDS TERMINATED BY '\u0001' 
+	  LINES TERMINATED BY '\n' 
+	  
+
+	  
+insert overwrite table temp.t_pachong_keyperson_info_03 
+	  SELECT concat(k2.enterprisename,'_06_',k2.registrationno,'_',k2.id),
+           k2.registrationno,
+           k2.enterprisename,
+           k2.keyperson_no,
+           k2.keyperson_name,
+           k2.keyperson_position,
+		   '',
+           '',
+           k2.lastupdatetime,
+           k2.id,
+           k2.dt
+   FROM
+     (SELECT  k.registrationno,
+              r.enterprisename,
+              k.keyperson_no,
+              k.keyperson_name,
+              k.keyperson_position,
+              k.lastupdatetime,
+              k.id,
+              k.dt
+      FROM (select *,ROW_NUMBER() OVER(PARTITION BY registrationno,keyperson_name,keyperson_position order by id desc) rank from ods.pachong_keyperson_info where dt <> 'glad') k 
+      JOIN (SELECT  registrationno,enterprisename,max(dt) dt FROM ods.pachong_registered_info WHERE dt <> 'glad' group by registrationno,enterprisename) r ON 
+	  k.registrationno=r.registrationno and k.rank=1
+	  ) k2
+union all 
+SELECT concat(gt.enterprisename,'_06_',gt.registrationno,'_',gt.id),
+       gt.registrationno,
+	   gt.enterprisename,
+       gt.keyperson_no,
+       gt.keyperson_name,
+       gt.keyperson_position,
+       gt.keyperson_certificationtype,
+       gt.keyperson_certificationno,
+	   gt.lastupdatetime,
+       gt.id,
+	    gt.dt
+FROM glad.keyperson_info_temp_03 gt
+LEFT JOIN
+(select g.enterprisename from  (SELECT distinct d.registrationno registrationno
+      FROM ods.pachong_keyperson_info d
+      WHERE d.dt <> 'glad') t
+   JOIN
+     (SELECT registrationno,
+             enterprisename
+      FROM ods.pachong_registered_info
+      WHERE dt <> 'glad') g ON t.registrationno=g.registrationno ) z ON gt.enterprisename=z.enterprisename
+	  WHERE z.enterprisename IS NULL
+
+	  
+
+股东信息
+CREATE TABLE `shareholder_info_temp`(
+	  `registrationno` string, 
+	  `enterprisename` string, 
+	  `shareholder_type` string, 
+	  `shareholder_name` string, 
+	  `shareholder_certificationtype` string, 
+	  `shareholder_certificationno` string, 
+	  `subscripted_capital` string, 
+	  `subscripted_method` string, 
+	  `subscripted_amount` string, 
+	  `subscripted_time` string, 
+	  `actualpaid_capital` string, 
+	  `actualpaid_method` string, 
+	  `actualpaid_amount` string, 
+	  `actualpaid_time` string, 
+	  `lastupdatetime` string, 
+	  `shareholder_details` string, 
+	  `detailflag` string, 
+	  `id` int)
+	PARTITIONED BY ( 
+	`dt` string)
+
+insert overwrite table  glad.shareholder_info_temp partition (dt='2016-05-21')
+select if(length(regexp_replace(xydm,'[\s ]',''))==0 or xydm is null or lower(xydm)=='null',zch,xydm) zch,ba.MC,t.gdlx,t.gd,t.ZJLX,t.ZJHM,t.SJE,t.BZ,t.SJE,'',t.RJE,t.BZ,t.RJE,'','','','',t.xh from glad.t_pl_public_org_base ba join (
+SELECT d.gdlx,d.gd,d.zjlx,d.zjhm,d.sje,d.rje,max(d.xh) xh,d.id,d.bz
+FROM
+glad.t_pl_public_org_shareholder_temp d 
+group by gdlx,gd,zjlx,zjhm,sje,rje,id,bz
+) t on ba.id=t.id
+union all 
+select y3.zch,y3.companyname,y3.gdlx,y3.gdmc,y3.zjlx,y3.zjhm,'','','','','','','','','','','',y3.id from (
+select y.zch,y.companyname,if(y.gdlx=='1','',if(gdlx=='2','',gdlx)) gdlx,y.gdmc,y.zjlx,y.zjhm,y.id,ROW_NUMBER() OVER(PARTITION BY zch,companyname,gdlx,gdmc order by id desc) rank from (
+select g.*,regexp_replace(b.mc,'[`~!@#$%^&*+=|{}\':;\",\\[\\].<>/?~！￥…—【】‘；：”“’。，、？\t ]','') companyname ,b.zch from gongshang.sh_gd  g join gongshang.sh_base b on g.orgid=b.id 
+) y left join (select ba.mc from glad.t_pl_public_org_shareholder_temp  gtemp join glad.t_pl_public_org_base ba on ba.id=gtemp.id) y1
+on y.companyname=y1.mc
+where y1.mc is null 
+) y3 
+where y3.rank=1
+
+
+insert overwrite table glad.shareholder_info_temp_03 partition (dt='2016-05-21')
+select s.zch,s.mc,s.gdlx,s.gd,s.zjlx,s.zjhm,s.sje,s.bz,s.sje,'',s.rje,s.bz,s.rje,'','','','',s.xh from (
+select sh.*,b.mc,if(length(regexp_replace(xydm,'[\s ]',''))==0 or xydm is null or lower(xydm)=='null',zch,xydm) zch,ROW_NUMBER() OVER(PARTITION BY if(length(xydm)==0 or xydm==null or lower(xydm)=='null',zch,xydm),mc,gdlx,gd order by xh desc) rank from gongshang.t_pl_public_org_shareholder sh join gongshang.t_pl_public_org_base b on sh.id=b.id
+) s where s.rank=1
+union all
+
+
+select g.registrationno,g.enterprisename,g.shareholder_type,g.shareholder_name,
+g.shareholder_certificationtype,g.shareholder_certificationno,g.subscripted_capital,g.subscripted_method,g.subscripted_amount,
+g.subscripted_time,g.actualpaid_capital,g.actualpaid_method,g.actualpaid_amount,g.actualpaid_time,g.lastupdatetime,g.shareholder_details,g.detailflag,g.id
+ from (select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,enterprisename,shareholder_type,shareholder_name order by id desc) rank from glad.shareholder_info_temp p ) g 
+left join (select b.mc,b.zch from gongshang.t_pl_public_org_shareholder s join  gongshang.t_pl_public_org_base b on s.id=b.id) t
+on g.enterprisename=t.mc
+where t.mc is null and g.rank=1
+
+
+
+
+
+
+
+CREATE TABLE `temp.t_pachong_shareholder_info_03`(
+  `key` string, 
+   `registrationno` string, 
+  `enterprisename` string, 
+  `shareholder_type` string, 
+  `shareholder_name` string, 
+  `shareholder_certificationtype` string, 
+  `shareholder_certificationno` string, 
+  `subscripted_capital` string, 
+  `subscripted_method` string, 
+  `subscripted_amount` string, 
+  `subscripted_time` string, 
+  `actualpaid_capital` string, 
+  `actualpaid_method` string, 
+  `actualpaid_amount` string, 
+  `actualpaid_time` string, 
+  `lastupdatetime` string, 
+  `shareholder_details` string, 
+  `detailflag` string, 
+  `id` int, 
+  `dt` string)
+ROW FORMAT DELIMITED 
+  FIELDS TERMINATED BY '\u0001' 
+  LINES TERMINATED BY '\n' 
+
+insert overwrite table temp.t_pachong_shareholder_info_03
+SELECT concat(k2.enterprisename,'_04_',k2.registrationno,'_',k2.id),
+k2.registrationno,
+k2.enterprisename,
+k2.shareholder_type,
+k2.shareholder_name,
+k2.shareholder_certificationtype,
+k2.shareholder_certificationno,
+k2.subscripted_capital,
+k2.subscripted_method,
+k2.subscripted_amount,
+k2.subscripted_time,
+k2.actualpaid_capital,
+k2.actualpaid_method,
+k2.actualpaid_amount,
+k2.actualpaid_time,
+k2.lastupdatetime,
+k2.shareholder_details,
+k2.detailflag,
+k2.id,
+k2.dt
+FROM
+(SELECT  k.registrationno,
+r.enterprisename,
+k.shareholder_type,
+k.shareholder_name,
+k.shareholder_certificationtype,
+k.shareholder_certificationno,
+k.subscripted_capital,
+k.subscripted_method,
+k.subscripted_amount,
+k.subscripted_time,
+k.actualpaid_capital,
+k.actualpaid_method,
+k.actualpaid_amount,
+k.actualpaid_time,
+k.lastupdatetime,
+k.shareholder_details,
+k.detailflag,
+k.id,
+k.dt
+FROM (select *,ROW_NUMBER() OVER(PARTITION BY registrationno,shareholder_type,shareholder_name,shareholder_certificationtype,shareholder_certificationno order by dt desc) rank  from ods.pachong_shareholder_info where dt<>'glad') k 
+JOIN (SELECT registrationno,enterprisename,max(dt) FROM ods.pachong_registered_info 
+WHERE dt <> 'glad'  and enterprisename not like '%有限合伙%'
+group by registrationno,enterprisename) r 
+ON k.registrationno=r.registrationno and k.rank=1
+) k2
+union all 
+select concat(g.enterprisename,'_04_',g.registrationno,'_',g.id),g.registrationno,g.enterprisename,g.shareholder_type,
+g.shareholder_name,g.shareholder_certificationtype,g.shareholder_certificationno,g.subscripted_capital,g.subscripted_method,
+g.subscripted_amount,g.subscripted_time,g.actualpaid_capital,g.actualpaid_method,g.actualpaid_amount,g.actualpaid_time,g.lastupdatetime,g.shareholder_details,
+g.detailflag,g.id,g.dt
+from  glad.shareholder_info_temp_03  g 
+left join (select r.enterprisename FROM (select t.*　from ods.pachong_shareholder_info t where dt <> 'glad') k join 
+(select * from  ods.pachong_registered_info WHERE dt <> 'glad' and enterprisename not like '%有限合伙%') r on k.registrationno=r.registrationno) g2
+on g.enterprisename=g2.enterprisename 
+where g2.enterprisename is null 
+
+
+ 
+行政处罚sql处理
+CREATE TABLE `t_pachong_administrative_penalty_03`(
+	  `key` string, 
+	  `penalty_no` string, 
+	  `penalty_code` string, 
+	  `penalty_illegaltype` string, 
+	  `penalty_decisioncontent` string, 
+	  `penalty_decisioninsititution` string, 
+	  `penalty_decisiondate` string, 
+	  `penalty_details` string, 
+	  `lastupdatetime` string, 
+	  `penalty_announceddate` string, 
+	  `penalty_publicationdate` string, 
+	  `equitypledge_announcedate` string, 
+	  `id` int, 
+	  `dt` string)
+	  
+insert overwrite table temp.t_pachong_administrative_penalty_03
+select concat(t1.enterprisename,'_13_',t2.registrationno,'_',id),t2.penalty_no,t2.penalty_code,t2.penalty_illegaltype,t2.penalty_decisioncontent,t2.penalty_decisioninsititution,t2.penalty_decisiondate,
+t2.penalty_details,t2.lastupdatetime,t2.penalty_announceddate,t2.penalty_publicationdate,t2.equitypledge_announcedate,t2.id,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,penalty_code,penalty_illegaltype,penalty_decisioncontent,
+penalty_decisioninsititution,penalty_decisiondate,penalty_details,equitypledge_announcedate order by dt desc) rank from ods.pachong_administrative_penalty p where p.penalty_code <> '') t2
+on t1.registrationno=t2.registrationno and t2.rank=1
+union all 
+select concat(y.mc,'_13_',y.zch,'_',y.xh),'',y.jdswh,y.wfxw,y.cfnr,y.jgmc,y.jdrq,y.xq,'','','','',y.xh,'' from (
+select b.mc,if(length(regexp_replace(b.xydm,'[\s ]',''))==0 or b.xydm is null or lower(b.xydm)=='null',b.zch,b.xydm) zch,
+g.jdswh,g.wfxw,g.cfnr,g.jgmc,g.jdrq,g.xq,g.xh,ROW_NUMBER() OVER(PARTITION BY jdswh,wfxw,cfnr,jgmc,jdrq,xq order by xh desc) rk from glad.t_pl_public_org_punish g 
+join glad.t_pl_public_org_base b on g.id=b.id 
+) y left join (
+select t.* from (select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t 
+join ods.pachong_administrative_penalty a on t.registrationno=a.registrationno 
+) y1 on y.mc=y1.enterprisename
+where y1.enterprisename is null and y.rk=1
+
+
+经营异常sql处理
+CREATE TABLE `t_pachong_business_abnormal_03`(
+	  `key` string, 
+	  `abnormal_no` string, 
+	  `abnormal_events` string, 
+	  `abnormal_datesin` string, 
+	  `abnormal_moveoutreason` string, 
+	  `abnormal_datesout` string, 
+	  `abnormal_decisioninstitution` string, 
+	  `lastupdatetime` string, 
+	  `publication_date` string, 
+	  `id` int, 
+	  `dt` string)
+
+insert overwrite table temp.t_pachong_business_abnormal_03
+select concat(t1.enterprisename,'_14_',t2.registrationno,'_',id),t2.abnormal_no,t2.abnormal_events,t2.abnormal_datesin,t2.abnormal_moveoutreason,t2.abnormal_datesout,
+t2.abnormal_decisioninstitution,t2.lastupdatetime,t2.publication_date,t2.id,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,Abnormal_Events,Abnormal_DatesIn,Abnormal_MoveoutReason,
+Abnormal_DatesOut,Abnormal_DecisionInstitution order by dt desc) rank from  ods.pachong_business_abnormal p) t2
+on t1.registrationno=t2.registrationno and t2.rank=1
+union all
+select concat(y.mc,'_14_',y.zch,'_',y.xh),'',y.lryy,y.lrrq,y.ycyy,y.ycrq,y.jdjg,'','',y.xh,'glad' from (
+select b.mc,if(length(regexp_replace(b.xydm,'[\s ]',''))==0 or b.xydm is null or lower(b.xydm)=='null',b.zch,b.xydm) zch,
+g.lryy,g.lrrq,g.ycyy,g.ycrq,g.jdjg,g.xh,g.id,ROW_NUMBER() OVER(PARTITION BY lryy,lrrq,ycyy,ycrq,jdjg,g.id order by xh desc) rk
+from glad.t_pl_public_org_business_abnormity g join glad.t_pl_public_org_base b on g.id=b.id 
+) y left join (
+select t.* from (select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t 
+join ods.pachong_business_abnormal a on t.registrationno=a.registrationno 
+) y1 on y.mc=y1.enterprisename
+where y1.enterprisename is null and y.rk=1
+
+
+
+-- 抽查检查
+CREATE TABLE `t_pachong_spot_check_03`(
+	  `key` string, 
+	  `check_no` string, 
+	  `check_institution` string, 
+	  `check_type` string, 
+	  `check_date` string, 
+	  `check_result` string, 
+	  `check_remark` string, 
+	  `lastupdatetime` string, 
+	  `id` int, 
+	  `dt` string)
+	  
+insert overwrite table temp.t_pachong_spot_check_03
+select concat(t1.enterprisename,'_16_',t2.registrationno,'_',id),t2.check_no,t2.check_institution,t2.check_type,t2.check_date,t2.check_result,
+t2.check_remark,t2.lastupdatetime,t2.id,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,Check_Institution,Check_Type,Check_Date,
+Check_Result,Check_Remark order by dt desc) rank from  ods.pachong_spot_check p) t2
+on t1.registrationno=t2.registrationno and t2.rank=1
+union all
+select concat(y.mc,'_16_',y.zch,'_',y.xh),'',y.ssjg,y.lx,y.rq,y.jg,'','',y.xh,y.dt from (
+select b.mc,if(length(regexp_replace(b.xydm,'[\s ]',''))==0 or b.xydm is null or lower(b.xydm)=='null',b.zch,b.xydm) zch,
+g.*,ROW_NUMBER() OVER(g.id,ssjg,lx,rq,jg  order by xh desc) rk
+from glad.t_pl_public_org_inspection g join glad.t_pl_public_org_base b on g.id=b.id 
+) y left join (
+select * from (select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t 
+join ods.pachong_business_abnormal a on t.registrationno=a.registrationno 
+) y1 on y.mc=y1.enterprisename
+where y1.enterprisename is null and y.rk=1	  
+
+
+--股权出资sql处理
+	CREATE TABLE `t_pachong_equity_pledge_03`(
+	  `key` string, 
+	  `equitypledge_no` string, 
+	  `equitypledge_registrationno` string, 
+	  `equitypledge_pledgor` string, 
+	  `equitypledge_pledgorid` string, 
+	  `equitypledge_amount` string, 
+	  `equitypledge_pawnee` string, 
+	  `equitypledge_pawneeid` string, 
+	  `equitypledge_registrationdate` string, 
+	  `equitypledge_status` string, 
+	  `equitypledge_announcedate` string, 
+	  `equitypledge_change` string, 
+	  `lastupdatetime` string, 
+	  `equitypledge_detail` string, 
+	  `id` int, 
+	  `dt` string)
+	  
+
+insert overwrite table temp.t_pachong_equity_pledge_03
+select concat(t1.enterprisename,'_12_',t2.registrationno,'_',id),t2.equitypledge_no,t2.equitypledge_registrationno,t2.equitypledge_pledgor,t2.equitypledge_pledgorid,
+t2.equitypledge_amount,t2.equitypledge_pawnee,t2.equitypledge_pawneeid,t2.equitypledge_registrationdate,t2.equitypledge_status,t2.equitypledge_announcedate,
+t2.equitypledge_change,t2.lastupdatetime,t2.equitypledge_detail,t2.id,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,equitypledge_registrationno,equitypledge_pledgor,equitypledge_pledgorid,
+equitypledge_amount,equitypledge_pawnee,equitypledge_pawneeid,equitypledge_registrationdate,equitypledge_status,equitypledge_announcedate,equitypledge_change
+order by dt desc) rank from  ods.pachong_equity_pledge p) t2
+on t1.registrationno=t2.registrationno and t2.rank=1
+union all
+select concat(y.mc,'_12_',y.zch,'_',y.xh),'',y.djbh,y.czr,y.zjhm,y.gqse,y.zqr,y.zzhm,y.djrq,y.zht,'',y.bhqk,'','',y.xh,'glad' from (
+select b.mc,if(length(regexp_replace(b.xydm,'[\s ]',''))==0 or b.xydm is null or lower(b.xydm)=='null',b.zch,b.xydm) zch,
+g.*,ROW_NUMBER() OVER(PARTITION BY djbh,czr,zjhm,gqse,zqr,zzhm,djrq,zht,bhqk,bzxx,g.id  order by xh desc) rk
+from glad.t_pl_public_org_equity g join glad.t_pl_public_org_base b on g.id=b.id 
+) y left join (
+select t.* from (select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t 
+join ods.pachong_business_abnormal a on t.registrationno=a.registrationno 
+) y1 on y.mc=y1.enterprisename
+where y1.enterprisename is null and y.rk=1	
+
+--动产抵押sql处理
+CREATE TABLE `t_pachong_chattel_mortgage_03`(
+	  `key` string, 
+	  `chattelmortgage_no` string, 
+	  `chattelmortgage_registrationno` string, 
+	  `chattelmortgage_registrationdate` string, 
+	  `chattelmortgage_registrationinstitution` string, 
+	  `chattelmortgage_guaranteedamount` string, 
+	  `chattelmortgage_status` string, 
+	  `chattelmortgage_announcedate` string, 
+	  `chattelmortgage_details` string, 
+	  `lastupdatetime` string, 
+	  `id` int, 
+	  `dt` string)  
+
+insert overwrite table temp.t_pachong_chattel_mortgage_03
+select concat(t1.enterprisename,'_05_',t2.registrationno,'_',id),t2.chattelmortgage_no,t2.chattelmortgage_registrationno,t2.chattelmortgage_registrationdate,
+t2.chattelmortgage_registrationinstitution,t2.chattelmortgage_guaranteedamount,t2.chattelmortgage_status,t2.chattelmortgage_announcedate,
+t2.chattelmortgage_details,t2.lastupdatetime,t2.id,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,chattelmortgage_registrationno,chattelmortgage_registrationdate,chattelmortgage_registrationinstitution,
+chattelmortgage_guaranteedamount,chattelmortgage_status,chattelmortgage_announcedate,chattelmortgage_details
+order by dt desc) rank from  ods.pachong_chattel_mortgage p) t2
+on t1.registrationno=t2.registrationno and t2.rank=1	
+
+
+--分支机构sql处理
+	CREATE TABLE `t_pachong_branches_03`(
+	  `key` string, 
+	  `branch_no` string, 
+	  `branch_registrationno` string, 
+	  `branch_registrationname` string, 
+	  `branch_registrationinstitution` string, 
+	  `lastupdatetime` string, 
+	  `id` int, 
+	  `dt` string)
+	  
+insert overwrite table temp.t_pachong_branches_03
+select concat(t1.enterprisename,'_08_',t2.registrationno,'_',id),t2.branch_no,t2.branch_registrationno,t2.branch_registrationname,
+t2.branch_registrationinstitution,t2.lastupdatetime,t2.id,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,branch_registrationno,branch_registrationname,branch_registrationinstitution
+order by dt desc) rank from  ods.pachong_branches p) t2
+on t1.registrationno=t2.registrationno and t2.rank=1	
+
+--清算信息sql处理
+CREATE TABLE `t_pachong_liquidation_information_03`(
+	  `key` string, 
+	  `liquidation_pic` string, 
+	  `liquidation_member` string, 
+	  `lastupdatetime` string, 
+	  `dt` string)
+	  
+insert overwrite table temp.t_pachong_liquidation_information_03
+select concat(t1.enterprisename,'_09_',t2.registrationno,'_'),t2.liquidation_pic,t2.liquidation_member,t2.lastupdatetime,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,liquidation_pic,liquidation_member
+order by dt desc) rank from  ods.pachong_liquidation_information p) t2
+on t1.registrationno=t2.registrationno and t2.rank=1
+union all 
+select concat(y.mc,'_09_',y.zch,'_',y.xh),y.FZR,y.cy,'','glad' from (
+select b.mc,if(length(regexp_replace(b.xydm,'[\s ]',''))==0 or b.xydm is null or lower(b.xydm)=='null',b.zch,b.xydm) zch,
+g.*
+from (select * from glad.t_pl_public_org_liquidation where cy <> '') g join glad.t_pl_public_org_base b on g.id=b.id 
+) y left join (
+select t.* from (select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t 
+join ods.pachong_business_abnormal a on t.registrationno=a.registrationno 
+) y1 on y.mc=y1.enterprisename
+where y1.enterprisename is null  
+
+-- 家庭成员sql处理
+CREATE TABLE `t_pachong_family_info_03`(
+	  `key` string, 
+	  `familymember_no` string, 
+	  `familymember_name` string, 
+	  `familymember_position` string, 
+	  `lastupdatetime` string, 
+	  `id` int, 
+	  `dt` string)
+
+insert overwrite table temp.t_pachong_family_info_03
+select concat(t1.enterprisename,'_07_',t2.registrationno,'_'),t2.familymember_no,t2.familymember_name,t2.familymember_position,t2.lastupdatetime,t2.id,t2.dt
+from
+(select registrationno,enterprisename from ods.pachong_registered_info where dt<> 'glad') t1
+join 
+(select p.*,ROW_NUMBER() OVER(PARTITION BY registrationno,familymember_name,familymember_position
+order by dt desc) rank from  ods.pachong_family_info p) t2
+on t1.registrationno=t2.registrationno and t2.rank=1
+-- 变更数据

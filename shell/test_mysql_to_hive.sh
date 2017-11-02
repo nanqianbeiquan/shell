@@ -1,0 +1,1 @@
+sqoop import --connect jdbc:mysql://172.16.0.20:3306/sh_bu --username root --password LENGjing1@34  --table t_pl_public_org_shareholder  --fields-terminated-by "\001"  --lines-terminated-by '\n' --hive-import --hive-overwrite  --hive-table gongshang.t_pl_public_org_shareholder  --hive-delims-replacement '<br>' -m 10 --split-by id
